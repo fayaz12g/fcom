@@ -40,6 +40,7 @@ import secrets
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 from PIL import Image
@@ -148,8 +149,8 @@ def cmd_build(args: argparse.Namespace) -> None:
         tmp       = Path(_tmp)
         converted = []
 
-        # ── PNG → GCI ────────────────────────────────────────────────────────
-        pngs = sorted(folder.glob("*.png"))
+        # ── PNG → GCI  (recursive) ───────────────────────────────────────────
+        pngs = sorted(folder.rglob("*.png"))
         if pngs:
             print("\n[images]")
         for png in pngs:
@@ -158,13 +159,14 @@ def cmd_build(args: argparse.Namespace) -> None:
                 img = Image.open(png)
                 img = img.convert("RGBA") if img.mode in ("RGBA", "LA", "PA") else img.convert("RGB")
                 img.save(str(dst), format="AVIF", quality=60, speed=4)
-                print(f"  {png.name:<30} {_file_kb(png):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
+                rel = png.relative_to(folder)
+                print(f"  {str(rel):<35} {_file_kb(png):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
                 converted.append(dst)
             except Exception as e:
-                print(f"  WARNING: skipping {png.name} — {e}", file=sys.stderr)
+                print(f"  WARNING: skipping {png} — {e}", file=sys.stderr)
 
-        # ── MP3 → GCS ────────────────────────────────────────────────────────
-        mp3s = sorted(folder.glob("*.mp3"))
+        # ── MP3 → GCS  (recursive) ───────────────────────────────────────────
+        mp3s = sorted(folder.rglob("*.mp3"))
         if mp3s:
             print("\n[audio]")
         for mp3 in mp3s:
@@ -175,13 +177,14 @@ def cmd_build(args: argparse.Namespace) -> None:
                 capture_output=True, text=True,
             )
             if result.returncode != 0:
-                print(f"  ERROR: ffmpeg failed on {mp3.name}:\n{result.stderr}", file=sys.stderr)
+                print(f"  ERROR: ffmpeg failed on {mp3.relative_to(folder)}:\n{result.stderr}", file=sys.stderr)
                 sys.exit(1)
-            print(f"  {mp3.name:<30} {_file_kb(mp3):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
+            rel = mp3.relative_to(folder)
+            print(f"  {str(rel):<35} {_file_kb(mp3):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
             converted.append(dst)
 
-        # ── JSON → GCD ───────────────────────────────────────────────────────
-        jsons = sorted(folder.glob("*.json"))
+        # ── JSON → GCD  (recursive) ──────────────────────────────────────────
+        jsons = sorted(folder.rglob("*.json"))
         if jsons:
             print("\n[data]")
         for jf in jsons:
@@ -189,33 +192,30 @@ def cmd_build(args: argparse.Namespace) -> None:
             try:
                 raw = jf.read_bytes()
                 dst.write_bytes(brotli.compress(raw, quality=11))
-                print(f"  {jf.name:<30} {_file_kb(jf):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
+                rel = jf.relative_to(folder)
+                print(f"  {str(rel):<35} {_file_kb(jf):>7.1f} KB  →  {_file_kb(dst):>7.1f} KB")
                 converted.append(dst)
             except Exception as e:
-                print(f"  WARNING: skipping {jf.name} — {e}", file=sys.stderr)
+                print(f"  WARNING: skipping {jf} — {e}", file=sys.stderr)
 
         if not converted:
             print("No convertible files found (*.png, *.mp3, *.json). Nothing to build.")
             sys.exit(0)
 
-        # ── Bundle into RAR ──────────────────────────────────────────────────
+        # ── Bundle into ZIP (stored — files are already compressed) ─────────
         print(f"\n[archive]  packing {len(converted)} file(s) …")
-        rar_path   = tmp / f"{name}.rar"
-        rar_result = subprocess.run(
-            ["rar", "a", "-ep", str(rar_path)] + [str(f) for f in converted],
-            capture_output=True, text=True,
-        )
-        if rar_result.returncode != 0:
-            print(f"rar error:\n{rar_result.stderr}", file=sys.stderr)
-            sys.exit(1)
+        zip_path = tmp / f"{name}.zip"
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
+            for f in converted:
+                zf.write(f, arcname=f.name)
 
         # ── Encrypt → .gcp ───────────────────────────────────────────────────
         print("[encrypt]  AES-256-GCM …")
-        rar_bytes  = rar_path.read_bytes()
+        zip_bytes  = zip_path.read_bytes()
         salt       = secrets.token_bytes(_SALT_LEN)
         nonce      = secrets.token_bytes(_NONCE_LEN)
         derived    = _derive_key(key, salt)
-        ciphertext = AESGCM(derived).encrypt(nonce, rar_bytes, None)
+        ciphertext = AESGCM(derived).encrypt(nonce, zip_bytes, None)
 
         gcp_path = out_dir / f"{name}.gcp"
         with open(gcp_path, "wb") as f:
@@ -256,24 +256,18 @@ def cmd_extract(args: argparse.Namespace) -> None:
     # Decrypt
     derived = _derive_key(key, salt)
     try:
-        rar_bytes = AESGCM(derived).decrypt(nonce, ciphertext, None)
+        zip_bytes = AESGCM(derived).decrypt(nonce, ciphertext, None)
     except Exception:
         print("Error: decryption failed — wrong key or corrupted file.", file=sys.stderr)
         sys.exit(1)
 
-    # Extract RAR
+    # Extract ZIP
     with tempfile.TemporaryDirectory() as _tmp:
         tmp      = Path(_tmp)
-        rar_path = tmp / "archive.rar"
-        rar_path.write_bytes(rar_bytes)
-
-        result = subprocess.run(
-            ["unrar", "x", str(rar_path), str(out_dir) + "/"],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
-            print(f"unrar error:\n{result.stderr}", file=sys.stderr)
-            sys.exit(1)
+        zip_path = tmp / "archive.zip"
+        zip_path.write_bytes(zip_bytes)
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            zf.extractall(out_dir)
 
     print(f"✓  Extracted to {out_dir}")
 

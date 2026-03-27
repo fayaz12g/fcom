@@ -1,37 +1,105 @@
-## FCOM - Powerfull compression for `GCP` file data.
+# FCOM — Powerful compression for `GCP` file data
 
-### Text, Audio, and Image
-Some Example outputs below:
+Converts and compresses assets into GCP archives — a proprietary encrypted container format used for GCP file data. PNG images become `.gci`, MP3 audio becomes `.gcs`, and JSON data becomes `.gcd`. All files are bundled and encrypted into a single `.gcp` archive.
+
+---
+
+## Setup
+
 ```bash
+python -m venv .venv
+```
+
+Activate the virtual environment:
+- **PowerShell:** `.venv\Scripts\Activate.ps1`
+- **Mac/Linux:** `source .venv/bin/activate`
+
+Then install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+> **Note:** `ffmpeg` must also be on your PATH for audio conversion.
+> - Windows: `choco install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/download.html)
+> - Mac: `brew install ffmpeg`
+> - Linux: `sudo apt install ffmpeg`
+
+---
+
+## Build a GCP archive
+
+The `build` command recursively scans a folder for `*.png`, `*.mp3`, and `*.json` files (across all subfolders), compresses each one, and packs them flat into an encrypted `.gcp` archive.
+
+```bash
+python fcom.py build <input_folder> <output_dir> --key "yourpassword"
+python fcom.py build <input_folder> <output_dir> --key "yourpassword" --name "mypack"
+```
+
+Example:
+```bash
+python fcom.py build .\assets\ .\dist\ --key "fayazpp"
+python fcom.py build .\assets\ .\dist\ --key "fayazpp" --name "pack"
+```
+
+## Extract a GCP archive
+
+```bash
+python fcom.py extract pack.gcp .\out\ --key "yourpassword"
+```
+
+---
+
+## Low-level helpers
+
+Individual file conversion commands are also available:
+
+```bash
+python fcom.py text        input.json   output.gcd
+python fcom.py decompress  input.gcd    output.json
+
+python fcom.py image       input.png    output.gci
+python fcom.py audio       input.mp3    output.gcs
+```
+
+---
+
+## Example output
+
+### JSON → GCD
+```
 Text compressed: test.json → test.gcd
-  Before       4,271 bytes
-  After          892 bytes
-  Saved        3,379 bytes  (79.1% reduction)
-
-Image compressed: test.png → test.gci
-  PNG     1469.1 KB
-  AVIF      14.2 KB
-  Saved    1454.9 KB  (99.0% reduction)
-
-Audio compressed: test.mp3 → test.gcs
-  MP3     6268.9 KB
-  Opus    2027.6 KB
-  Saved    4241.3 KB  (67.7% reduction)
+    Before       4,271 bytes
+    After          892 bytes
+    Saved        3,379 bytes  (79.1% reduction)
 ```
 
-Usage:
-
-```bash
-python3 fcom.py text       test.json     test.gcd
-python3 fcom.py decompress test.gcd  test.json
-python3 fcom.py image      test.png    test.gci
-python3 fcom.py audio      test.mp3     test.gcs
-
-fcom build ./my_assets ./dist --key "mysecret"
-fcom build ./my_assets ./dist --key "mysecret" --name pack
-
-fcom extract pack.gcp ./out --key "mysecret"
+### PNG → GCI
+```
+Image: test.png → test.gci
+    PNG       1469.1 KB
+    GCI/AVIF    14.2 KB
+    Saved     1454.9 KB  (99.0% reduction)
 ```
 
-*Note: Images save as `AVIF`, and sound files save as `OPUS`, which is an `OGG` container type.*
-*`GCD` files are compressed with Brotli and not directly readable unless decompressed into `JSON` data*
+### MP3 → GCS
+```
+Audio: test.mp3 → test.gcs
+    MP3       6268.9 KB
+    GCS/Opus  2027.6 KB
+    Saved     4241.3 KB  (67.7% reduction)
+```
+
+---
+
+## File formats
+
+| Extension | Container | Codec   | Notes                                      |
+|-----------|-----------|---------|--------------------------------------------|
+| `.gci`    | AVIF      | AV1     | Lossily compressed image, quality 60       |
+| `.gcs`    | OGG/Opus  | Opus    | Lossily compressed audio, 64 kbps          |
+| `.gcd`    | —         | Brotli  | Losslessly compressed JSON, quality 11     |
+| `.gcp`    | Proprietary | AES-256-GCM | Encrypted archive containing the above |
+
+> `.gcd` files are Brotli-compressed and not directly readable — use `decompress` to restore the original JSON.
+> `.gcp` files are opaque without the correct key; the internal structure is not publicly documented.
