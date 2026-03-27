@@ -32,20 +32,26 @@ pip install -r requirements.txt
 The `build` command recursively scans a folder for `*.png`, `*.mp3`, and `*.json` files (across all subfolders), compresses each one, and packs them flat into an encrypted `.gcp` archive.
 
 ```bash
-python fcom.py build <input_folder> <output_dir> --key "yourpassword"
-python fcom.py build <input_folder> <output_dir> --key "yourpassword" --name "mypack"
+python fcom.py build <input_folder> <output_dir> --key "privatekey"
+python fcom.py build <input_folder> <output_dir> --key "privatekey" --name "pack"
 ```
 
 Example:
 ```bash
-python fcom.py build .\assets\ .\dist\ --key "fayazpp"
-python fcom.py build .\assets\ .\dist\ --key "fayazpp" --name "pack"
+python fcom.py build .\test_files\pack\pop .\test_files\dist\ --key "fayazpp"
+python fcom.py build .\test_files\pack\schools .\test_files\dist\ --key "fayazpp" --name "schools"
 ```
+> The default name of the archive is the root folder name.
 
 ## Extract a GCP archive
 
 ```bash
-python fcom.py extract pack.gcp .\out\ --key "yourpassword"
+python fcom.py extract pack.gcp .\out\ --key "privatekey"
+```
+
+Example:
+```bash
+python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out --key "fayazpp"
 ```
 
 ---

@@ -99,7 +99,8 @@ def cmd_audio(args: argparse.Namespace) -> None:
     src, dst, bitrate = args.input, args.output, f"{args.bitrate}k"
     result = subprocess.run(
         ["ffmpeg", "-y", "-i", src,
-         "-vn", "-c:a", "libopus", "-b:a", bitrate, "-application", "audio", dst],
+         "-vn", "-c:a", "libopus", "-b:a", bitrate, "-application", "audio",
+         "-f", "ogg", dst],
         capture_output=True, text=True,
     )
     if result.returncode != 0:
@@ -173,7 +174,8 @@ def cmd_build(args: argparse.Namespace) -> None:
             dst = tmp / (mp3.stem + ".gcs")
             result = subprocess.run(
                 ["ffmpeg", "-y", "-i", str(mp3),
-                 "-vn", "-c:a", "libopus", "-b:a", "64k", "-application", "audio", str(dst)],
+                 "-vn", "-c:a", "libopus", "-b:a", "64k", "-application", "audio",
+                 "-f", "ogg", str(dst)],
                 capture_output=True, text=True,
             )
             if result.returncode != 0:
@@ -261,15 +263,18 @@ def cmd_extract(args: argparse.Namespace) -> None:
         print("Error: decryption failed — wrong key or corrupted file.", file=sys.stderr)
         sys.exit(1)
 
-    # Extract ZIP
+    # Extract ZIP into a subfolder named after the archive
+    extract_dir = out_dir / gcp_path.stem
+    extract_dir.mkdir(parents=True, exist_ok=True)
+
     with tempfile.TemporaryDirectory() as _tmp:
         tmp      = Path(_tmp)
         zip_path = tmp / "archive.zip"
         zip_path.write_bytes(zip_bytes)
         with zipfile.ZipFile(zip_path, "r") as zf:
-            zf.extractall(out_dir)
+            zf.extractall(extract_dir)
 
-    print(f"✓  Extracted to {out_dir}")
+    print(f"✓  Extracted to {extract_dir}")
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
