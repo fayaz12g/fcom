@@ -29,6 +29,20 @@ pip install -r requirements.txt
 
 ---
 
+
+## Encryption Key via .env (Recommended)
+
+FCOM automatically reads the encryption key from a `.env` file if present.
+
+Create a `.env` file in the project root:
+
+```bash
+FCOM_PKI=your_super_secret_key
+```
+
+Then you can run commands without specifying `--key`. If `.env` is not present, the `--key` argument
+ is still supported
+
 ## Build a GCP archive
 
 The `build` command recursively scans a folder for `*.png`, `*.mp3`, and `*.json` files (across all
@@ -38,22 +52,11 @@ subfolders), compresses each one, and packs them flat into an encrypted `.gcp` a
 python fcom.py build <input_folder> <output_dir> --key "privatekey"
 python fcom.py build <input_folder> <output_dir> --key "privatekey" --name "pack"
 ```
-> Note: It is highly recommended to setup a .env variable with a secure and complex private key. Let
-> powershell pick it up by pasting this into your terminal:
-
-```bash
-Get-Content .env | Foreach-Object {
-    $name, $value = $_.Split('=')
-    Set-Content "env:$name" $value
-}
-```
-
-and then point to the variable in the build and extract commands by replacing the string key with `$env:FCOM_PKI`
 
 Example:
 ```bash
-python fcom.py build .\test_files\pack\pop .\test_files\dist\ --key $env:FCOM_PKI
-python fcom.py build .\test_files\pack\schools .\test_files\dist\ --key $env:FCOM_PKI --name "schools"
+python fcom.py build .\test_files\pack\pop .\test_files\dist\"
+python fcom.py build .\test_files\pack\schools .\test_files\dist\ --name "schools --key "fayazpp"
 ```
 > The default name of the archive is the root folder name.
 
@@ -66,7 +69,7 @@ python fcom.py extract pack.gcp .\out\ --key "privatekey"
 Example:
 ```bash
 python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out --key "fayazpp"
-python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out --key $env:FCOM_PKI
+python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out
 ```
 
 ---

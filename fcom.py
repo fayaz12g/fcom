@@ -36,6 +36,7 @@ Encryption
 import argparse
 import brotli
 import os
+from dotenv import load_dotenv
 import secrets
 import subprocess
 import sys
@@ -61,6 +62,18 @@ _KDF_ITERATIONS = 600_000      # PBKDF2 work factor
 def _file_kb(path) -> float:
     return os.path.getsize(path) / 1024
 
+def resolve_key(cli_key):
+    load_dotenv()
+
+    env_key = os.getenv("FCOM_PKI")
+
+    if env_key:
+        return env_key
+    if cli_key:
+        return cli_key
+
+    print("Error: No encryption key provided via .env or --key")
+    sys.exit(1)
 
 def _print_stats(label_in: str, size_in: float,
                  label_out: str, size_out: float) -> None:
@@ -137,7 +150,7 @@ def cmd_decompress(args: argparse.Namespace) -> None:
 def cmd_build(args: argparse.Namespace) -> None:
     folder  = Path(args.input)
     out_dir = Path(args.output)
-    key     = args.key
+    key     = resolve_key(args.key)
     name    = args.name or folder.name
 
     if not folder.is_dir():
@@ -286,14 +299,14 @@ def main() -> None:
     b = sub.add_parser("build", help="Compress a folder into a .gcp archive")
     b.add_argument("input",  help="Source folder (flat; contains *.png, *.mp3, *.json)")
     b.add_argument("output", help="Output directory")
-    b.add_argument("--key",  required=True, help="Encryption password")
+    b.add_argument("--key",  required=False, help="Encryption password")
     b.add_argument("--name", default=None,  help="Archive base name (default: folder name)")
 
     # extract
     x = sub.add_parser("extract", help="Decrypt and extract a .gcp archive")
     x.add_argument("input",  help="Input .gcp file")
     x.add_argument("output", help="Output directory")
-    x.add_argument("--key",  required=True, help="Encryption password")
+    x.add_argument("--key",  required=False, help="Encryption password")
 
     # image (low-level helper)
     img = sub.add_parser("image", help="Single image → GCI/AVIF")
