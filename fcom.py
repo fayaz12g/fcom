@@ -250,7 +250,7 @@ def cmd_build(args: argparse.Namespace) -> None:
 def cmd_extract(args: argparse.Namespace) -> None:
     gcp_path = Path(args.input)
     out_dir  = Path(args.output)
-    key      = args.key
+    key      = resolve_key(args.key)
 
     if not gcp_path.is_file():
         print(f"Error: '{gcp_path}' not found.", file=sys.stderr)
