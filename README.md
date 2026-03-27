@@ -1,6 +1,8 @@
 # FCOM — Powerful compression for `GCP` file data
 
-Converts and compresses assets into GCP archives — a proprietary encrypted container format used for GCP file data. PNG images become `.gci`, MP3 audio becomes `.gcs`, and JSON data becomes `.gcd`. All files are bundled and encrypted into a single `.gcp` archive.
+Converts and compresses assets into GCP archives — a proprietary encrypted container format used for
+GCP file data. PNG images become `.gci`, MP3 audio becomes `.gcs`, and JSON data becomes `.gcd`. All
+files are bundled and encrypted into a single `.gcp` archive.
 
 ---
 
@@ -29,17 +31,29 @@ pip install -r requirements.txt
 
 ## Build a GCP archive
 
-The `build` command recursively scans a folder for `*.png`, `*.mp3`, and `*.json` files (across all subfolders), compresses each one, and packs them flat into an encrypted `.gcp` archive.
+The `build` command recursively scans a folder for `*.png`, `*.mp3`, and `*.json` files (across all
+subfolders), compresses each one, and packs them flat into an encrypted `.gcp` archive.
 
 ```bash
 python fcom.py build <input_folder> <output_dir> --key "privatekey"
 python fcom.py build <input_folder> <output_dir> --key "privatekey" --name "pack"
 ```
+> Note: It is highly recommended to setup a .env variable with a secure and complex private key. Let
+> powershell pick it up by pasting this into your terminal:
+
+```bash
+Get-Content .env | Foreach-Object {
+    $name, $value = $_.Split('=')
+    Set-Content "env:$name" $value
+}
+```
+
+and then point to the variable in the build and extract commands by replacing the string key with `$env:FCOM_PKI`
 
 Example:
 ```bash
-python fcom.py build .\test_files\pack\pop .\test_files\dist\ --key "fayazpp"
-python fcom.py build .\test_files\pack\schools .\test_files\dist\ --key "fayazpp" --name "schools"
+python fcom.py build .\test_files\pack\pop .\test_files\dist\ --key $env:FCOM_PKI
+python fcom.py build .\test_files\pack\schools .\test_files\dist\ --key $env:FCOM_PKI --name "schools"
 ```
 > The default name of the archive is the root folder name.
 
@@ -52,6 +66,7 @@ python fcom.py extract pack.gcp .\out\ --key "privatekey"
 Example:
 ```bash
 python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out --key "fayazpp"
+python fcom.py extract .\test_files\dist\pop.gcp .\test_files\out --key $env:FCOM_PKI
 ```
 
 ---
@@ -107,5 +122,6 @@ Audio: test.mp3 → test.gcs
 | `.gcd`    | —         | Brotli  | Losslessly compressed JSON, quality 11     |
 | `.gcp`    | Proprietary | AES-256-GCM | Encrypted archive containing the above |
 
-> `.gcd` files are Brotli-compressed and not directly readable — use `decompress` to restore the original JSON.
-> `.gcp` files are opaque without the correct key; the internal structure is not publicly documented.
+> `.gcd` files are Brotli-compressed and not directly readable — use `decompress` to restore the
+> original JSON. `.gcp` files are opaque without the correct key; the internal structure is not
+> publicly documented.
