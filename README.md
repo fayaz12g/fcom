@@ -1,4 +1,4 @@
-# FCOM — Powerful compression for `GCP` file data
+# FCOM — Fayaz Compression for `GCP` file data
 
 Converts and compresses assets into GCP archives — a proprietary encrypted container format used for
 GCP file data. PNG images become `.gci`, MP3 audio becomes `.gcs`, and JSON data becomes `.gcd`. All
